@@ -1,0 +1,142 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart's Journey: Dating Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="app">
+        <div :class="['app-container', currentScreen]">
+            <!-- Loading Screen -->
+            <div v-if="currentScreen === 'loading'" class="loading-screen">
+                <div class="loading-content">
+                    <h1>Heart's Journey</h1>
+                    <div class="heart-loader">
+                        <svg viewBox="0 0 512 512" width="100" height="100">
+                            <path d="M462.3 62.6C407.5 15.9 326 24.3 275.7 76.2L256 96.5l-19.7-20.3C186.1 24.3 104.5 15.9 49.7 62.6c-62.8 53.6-66.1 149.8-9.9 207.9l193.5 199.8c12.5 12.9 32.8 12.9 45.3 0l193.5-199.8c56.3-58.1 53-154.3-9.8-207.9z" fill="currentColor" />
+                        </svg>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar" :style="{width: loadingProgress + '%'}"></div>
+                    </div>
+                    <p>{{ loadingMessage }}</p>
+                </div>
+            </div>
+
+            <!-- Main Menu -->
+            <div v-if="currentScreen === 'mainMenu'" class="main-menu">
+                <div class="menu-content">
+                    <h1>Heart's Journey</h1>
+                    <div class="menu-buttons">
+                        <button @click="startNewGame">New Game</button>
+                        <button @click="continueGame" :disabled="!hasSavedGame">Continue</button>
+                        <button @click="openSettings">Settings</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Character Selection -->
+            <div v-if="currentScreen === 'characterSelection'" class="character-selection">
+                <h2>Choose Your Date</h2>
+                <div class="character-cards">
+                    <div v-for="character in characters" :key="character.id" class="character-card" @click="selectCharacter(character)">
+                        <div class="character-image-container">
+                            <img :src="character.imageSrc || 'assets/placeholder.svg'" :alt="character.name" class="character-image">
+                        </div>
+                        <div class="character-info">
+                            <h3>{{ character.name }}</h3>
+                            <p>{{ character.shortBio }}</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="back-button" @click="goToMainMenu">Back</button>
+            </div>
+
+            <!-- Location Selection -->
+            <div v-if="currentScreen === 'locationSelection'" class="location-selection">
+                <h2>Choose a Location</h2>
+                <div class="location-cards">
+                    <div v-for="location in locations" :key="location.id" class="location-card" @click="selectLocation(location)">
+                        <div class="location-image-container">
+                            <img :src="location.imageSrc || 'assets/placeholder.svg'" :alt="location.name" class="location-image">
+                        </div>
+                        <div class="location-info">
+                            <h3>{{ location.name }}</h3>
+                            <p>{{ location.shortDesc }}</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="back-button" @click="goToCharacterSelection">Back</button>
+            </div>
+
+            <!-- Game Screen -->
+            <div v-if="currentScreen === 'gameScreen'" class="game-screen">
+                <div class="location-background" :style="{'background-image': `url(${currentLocation.imageSrc})`}">
+                    <div class="character-portrait-container">
+                        <img :src="currentCharacter.imageSrc" alt="Character" class="character-portrait">
+                    </div>
+                </div>
+                <div class="dialogue-container">
+                    <div class="character-name">{{ currentCharacter.name }}</div>
+                    <div class="dialogue-text" ref="dialogueText">{{ currentDialogue }}</div>
+                    <div v-if="dialogueChoices.length > 0" class="dialogue-choices">
+                        <button v-for="(choice, index) in dialogueChoices" :key="index" class="choice-button" @click="makeChoice(index)">
+                            {{ choice }}
+                        </button>
+                    </div>
+                    <div v-else class="dialogue-continue" @click="continueDialogue">
+                        <span>Continue</span>
+                    </div>
+                </div>
+                <div class="game-menu-button" @click="toggleGameMenu">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor" />
+                    </svg>
+                </div>
+                <div v-if="showGameMenu" class="game-menu">
+                    <button @click="resumeGame">Resume</button>
+                    <button @click="openSettings">Settings</button>
+                    <button @click="goToMainMenu">Main Menu</button>
+                </div>
+            </div>
+
+            <!-- Settings Screen -->
+            <div v-if="currentScreen === 'settings'" class="settings-screen">
+                <h2>Settings</h2>
+                <div class="settings-options">
+                    <div class="setting-item">
+                        <label for="ttsToggle">Text-to-Speech</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="ttsToggle" v-model="settings.textToSpeech">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label for="textSpeed">Text Speed</label>
+                        <input type="range" id="textSpeed" min="1" max="10" v-model="settings.textSpeed">
+                    </div>
+                    <div class="setting-item">
+                        <label for="voicePitch">Voice Pitch</label>
+                        <input type="range" id="voicePitch" min="0.5" max="2" step="0.1" v-model="settings.voicePitch">
+                    </div>
+                    <div class="setting-item">
+                        <label for="voiceRate">Voice Rate</label>
+                        <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" v-model="settings.voiceRate">
+                    </div>
+                </div>
+                <button class="back-button" @click="closeSettings">Back</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="app.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
